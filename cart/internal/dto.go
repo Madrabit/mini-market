@@ -3,29 +3,56 @@ package internal
 import "github.com/google/uuid"
 
 type Cart struct {
-	Userid uuid.UUID
 	Id     uuid.UUID
-	Items  []Item
+	Userid uuid.UUID
+	Items  map[uuid.UUID]Product
 }
 
-type Item struct {
-	Id  uuid.UUID
-	Qty int64
+type Product struct {
+	Id        uuid.UUID
+	CartId    uuid.UUID
+	ProductId uuid.UUID
+	Qty       int64
 }
 
-type CatalogResponse struct {
-	ItemsIds []uuid.UUID
+type AddToCartRequest struct {
+	ProductId uuid.UUID
+	Qty       int64
+}
+
+type UpdateCartItemRequest struct {
+	ProductId uuid.UUID
+	Qty       int64
+}
+
+type RemoveCartItemRequest struct {
+	ProductId uuid.UUID
 }
 
 type CatalogRequest struct {
+	ProductIds []uuid.UUID
+}
+
+type CatalogResponse struct {
+	Products []CatalogProduct
+}
+
+type CatalogProduct struct {
 	Id    uuid.UUID
 	Name  string
 	Price int64
 }
 
-type InventoryResponse struct {
+type InventoryRequest struct {
 	ItemsIds []uuid.UUID
 }
 
-type InventoryRequest struct {
+type InventoryResponse struct {
+	Statuses []InventoryStatus
+}
+
+type InventoryStatus struct {
+	Product   uuid.UUID
+	Available bool
+	Quantity  int64
 }
