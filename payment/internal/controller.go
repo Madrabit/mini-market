@@ -1,5 +1,7 @@
 package internal
 
+import "github.com/go-chi/chi/v5"
+
 /*
  TODO
 Действующие лица:
@@ -79,3 +81,21 @@ External Payment Provider — это черный ящик, который ра�
 
 Это идеальная практика для pet-проекта. Вы на собственном опыте поймете все сложности и паттерны (вебхуки, идемпотентность, retry logic) распределенных систем.
 */
+
+type Controller struct {
+}
+
+func NewController() *Controller {
+	return &Controller{}
+}
+
+func (c *Controller) Routes() chi.Router {
+	r := chi.NewRouter()
+	//получить заказ от Order сервиса
+	r.Post("/", c.CreateOrder)
+	//получает от PSP по вебхуку что оплата прошла
+	r.Post("/payment", c.PSPWebhook)
+	// Получить статус оплаты
+	r.Get("{/orderID}", c.GetStatus)
+	return r
+}
