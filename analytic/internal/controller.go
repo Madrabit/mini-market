@@ -2,11 +2,16 @@ package internal
 
 import (
 	"encoding/json"
+	"fmt"
 	"github.com/go-chi/chi/v5"
+	"github.com/madrabit/mini-market/analytic/internal/common"
+	"go.uber.org/zap"
+	"log"
 	"net/http"
 )
 
 type Controller struct {
+	logger *common.Logger
 }
 
 func NewController() *Controller {
@@ -44,6 +49,36 @@ func (c *Controller) Routes() chi.Router {
 func (c *Controller) HandelEvent(w http.ResponseWriter, r *http.Request) {
 	var event Event
 	err := json.NewDecoder(r.Body).Decode(&event)
+	if err != nil {
+
+	}
+
+}
+
+func (c *Controller) getFileByProducts(w http.ResponseWriter, r *http.Request) {
+	var request ProductsReq
+	if err := json.NewDecoder(r.Body).Decode(&request); err != nil {
+		c.logger.Error("failed to get employees", zap.Error(err))
+		w.WriteHeader(http.StatusBadRequest)
+		return
+	}
+	c.logger.Debug("get employees: received request", zap.Any("request", request))
+	products, err := c.svc.FindByProducts(request.Products)
+	if err != nil {
+		c.logger.Error("failed to get employees", zap.Error(err))
+		w.WriteHeader(http.StatusBadRequest)
+		return
+	}
+	fileName := "emp.xls"
+	w.Header().Set("Content-Disposition", "attachment; filename=\""+fileName+"\"")
+	w.Header().Set("Content-Type", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+	w.Header().Set("Content-Length", fmt.Sprintf("%d", len(products)))
+	w.WriteHeader(http.StatusOK)
+	if _, err := w.Write(products); err != nil {
+		c.logger.Error("failed to write response", zap.Error(err))
+		log.Printf("failed to write response: %v", err)
+	}
+	c.logger.Info("successfully retrieve employees list")
 }
 
 func (c *Controller) GetOrdersSummary(w http.ResponseWriter, r *http.Request) {
