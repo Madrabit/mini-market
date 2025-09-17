@@ -1,7 +1,11 @@
 package internal
 
 import (
+	"encoding/json"
 	"github.com/go-chi/chi/v5"
+	"github.com/google/uuid"
+	"github.com/madrabit/mini-market/cart/internal/common"
+	"go.uber.org/zap"
 	"net/http"
 )
 
@@ -17,10 +21,19 @@ TODO
 */
 
 type Controller struct {
+	svc    Svc
+	logger *common.Logger
 }
 
-func NewController() *Controller {
-	return &Controller{}
+func NewController(svc Svc, logger common.Logger) *Controller {
+	return &Controller{svc: svc, logger: &logger}
+}
+
+type Svc interface {
+	GetCart() (Cart, error)
+	AddToCart(item AddToCartRequest) error
+	UpdateCart(item UpdateCartItemRequest) error
+	DeleteProduct(id uuid.UUID) error
 }
 
 func (c *Controller) Routes() chi.Router {
@@ -37,18 +50,80 @@ func (c *Controller) Routes() chi.Router {
 }
 
 func (c *Controller) GetCart(w http.ResponseWriter, r *http.Request) {
-
+	cart, err := c.svc.GetCart()
+	if err != nil {
+		c.logger.Error("failed to get cart", zap.Error(err))
+		common.ErrResponse(w, http.StatusBadRequest, error.Error(err))
+		return
+	}
+	common.OkResponse(w, cart)
 }
 
 func (c *Controller) AddToCart(w http.ResponseWriter, r *http.Request) {
-	var items AddToCartRequest
+	defer func() {
+		err := r.Body.Close()
+		if err != nil {
+			c.logger.Error("failed to close body", zap.Error(err))
+		}
+	}()
+	var item AddToCartRequest
+	err := json.NewDecoder(r.Body).Decode(&item)
+	if err != nil {
+		if err != nil {
+			c.logger.Error("failed add to cart", zap.Error(err))
+			w.WriteHeader(http.StatusBadRequest)
+			return
+		}
+		err := c.svc.AddToCart(item)
+		if err != nil {
+			c.logger.Error("failed add to cart", zap.Error(err))
+			common.ErrResponse(w, http.StatusBadRequest, error.Error(err))
+			return
+		}
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusOK)
+	}
 }
 
 func (c *Controller) UpdateCart(w http.ResponseWriter, r *http.Request) {
-
+	defer func() {
+		err := r.Body.Close()
+		if err != nil {
+			c.logger.Error("failed to close body", zap.Error(err))
+		}
+	}()
 	var item UpdateCartItemRequest
+	err := json.NewDecoder(r.Body).Decode(&item)
+	if err != nil {
+		c.logger.Error("failed update cart", zap.Error(err))
+		w.WriteHeader(http.StatusBadRequest)
+		return
+	}
+	err = c.svc.UpdateCart(item)
+	if err != nil {
+		c.logger.Error("failed to update cart", zap.Error(err))
+		common.ErrResponse(w, http.StatusBadRequest, error.Error(err))
+		return
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
 }
 
 func (c *Controller) DeleteProduct(w http.ResponseWriter, r *http.Request) {
-	var id RemoveCartItemRequest
+	productID := r.URL.Query().Get("productID")
+	id, err := uuid.Parse(productID)
+	if productID == "" {
+		c.logger.Warn("empty params")
+		common.ErrResponse(w, http.StatusBadRequest, "empty param")
+		return
+	}
+	err = c.svc.DeleteProduct(id)
+	if err != nil {
+		c.logger.Error("failed to delete item from cart", zap.Error(err))
+		common.ErrResponse(w, http.StatusBadRequest, error.Error(err))
+		return
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+
 }

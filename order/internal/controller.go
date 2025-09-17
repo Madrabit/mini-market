@@ -1,7 +1,11 @@
 package internal
 
 import (
+	"encoding/json"
 	"github.com/go-chi/chi/v5"
+	"github.com/google/uuid"
+	"github.com/madrabit/mini-market/order/internal/common"
+	"go.uber.org/zap"
 	"net/http"
 )
 
@@ -24,10 +28,18 @@ Catalog Service: Запрос актуальных цен и названий т
 */
 
 type Controller struct {
+	svc    Svc
+	logger *common.Logger
 }
 
-func NewController() *Controller {
-	return &Controller{}
+func NewController(svc Svc, logger common.Logger) *Controller {
+	return &Controller{svc: svc, logger: &logger}
+}
+
+type Svc interface {
+	CreateOrder(req CreatOrderRequest) (OrderResponse, error)
+	GetStatus(user, order uuid.UUID) (StatusResponse, error)
+	UpdatePaymentStatus(req UpdatePaymentStatusRequest) error
 }
 
 func (c *Controller) Routes() chi.Router {
@@ -41,14 +53,68 @@ func (c *Controller) Routes() chi.Router {
 	return r
 }
 
-func (c *Controller) GetStatus(writer http.ResponseWriter, request *http.Request) {
-
+func (c *Controller) CreateOrder(w http.ResponseWriter, r *http.Request) {
+	defer func() {
+		err := r.Body.Close()
+		if err != nil {
+			c.logger.Error("failed to create order", zap.Error(err))
+		}
+	}()
+	var req CreatOrderRequest
+	err := json.NewDecoder(r.Body).Decode(&req)
+	if err != nil {
+		c.logger.Error("failed to create order", zap.Error(err))
+		w.WriteHeader(http.StatusBadRequest)
+		return
+	}
+	resp, err := c.svc.CreateOrder(req)
+	if err != nil {
+		c.logger.Error("failed to create order", zap.Error(err))
+		common.ErrResponse(w, http.StatusBadRequest, error.Error(err))
+		return
+	}
+	common.OkResponse(w, resp)
 }
 
-func (c *Controller) UpdatePaymentStatus(writer http.ResponseWriter, request *http.Request) {
-
+func (c *Controller) UpdatePaymentStatus(w http.ResponseWriter, r *http.Request) {
+	defer func() {
+		err := r.Body.Close()
+		if err != nil {
+			c.logger.Error("failed to update payment status", zap.Error(err))
+		}
+	}()
+	var req UpdatePaymentStatusRequest
+	err := json.NewDecoder(r.Body).Decode(&req)
+	if err != nil {
+		c.logger.Error("failed to update payment status", zap.Error(err))
+		w.WriteHeader(http.StatusBadRequest)
+		return
+	}
+	err = c.svc.UpdatePaymentStatus(req)
+	if err != nil {
+		c.logger.Error("failed to update payment status", zap.Error(err))
+		common.ErrResponse(w, http.StatusBadRequest, error.Error(err))
+		return
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
 }
 
-func (c *Controller) CreateOrder(writer http.ResponseWriter, request *http.Request) {
-
+func (c *Controller) GetStatus(w http.ResponseWriter, r *http.Request) {
+	orderId := r.URL.Query().Get("orderID")
+	userID := r.URL.Query().Get("userID")
+	user, err := uuid.Parse(userID)
+	order, err := uuid.Parse(orderId)
+	if err != nil || user == uuid.Nil || order == uuid.Nil {
+		c.logger.Warn("invalid param")
+		common.ErrResponse(w, http.StatusBadRequest, "invalid param")
+		return
+	}
+	status, err := c.svc.GetStatus(user, order)
+	if err != nil {
+		c.logger.Error("failed to get order status", zap.Error(err))
+		common.ErrResponse(w, http.StatusBadRequest, error.Error(err))
+		return
+	}
+	common.OkResponse(w, status)
 }

@@ -25,10 +25,6 @@ type UpdateCartItemRequest struct {
 	Qty       int64
 }
 
-type RemoveCartItemRequest struct {
-	ProductId uuid.UUID
-}
-
 type CatalogRequest struct {
 	ProductIds []uuid.UUID
 }

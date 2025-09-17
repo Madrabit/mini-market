@@ -48,6 +48,11 @@ type CreateDeliveryResponse struct {
 }
 
 type NotifyOrderRequest struct {
-	Products []Product
-	UserID   uint64
+	OrderID uuid.UUID
+	UserID  uint64
+}
+
+type NotifyOrderResponse struct {
+	OrderIDs uuid.UUID
+	Status   Status
 }

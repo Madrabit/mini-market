@@ -7,11 +7,14 @@ type Warehouse struct {
 }
 
 type Item struct {
-	Qty int64
+	ID        uuid.UUID
+	Qty       int64
+	Reserved  int64
+	Available int64
 }
 
 type ListItemsRequest struct {
-	Id uuid.UUID
+	IDs []uuid.UUID
 }
 
 type ListItemsResponse struct {
@@ -30,4 +33,15 @@ type UpdateItemRequest struct {
 
 type DeleteItemRequest struct {
 	Id uuid.UUID
+}
+
+type ReserveItemRequest struct {
+	Id      uuid.UUID
+	Qty     int64
+	OrderID uuid.UUID // под какой заказ резерв
+}
+
+type ReliesItemRequest struct {
+	Id  uuid.UUID
+	Qty int64
 }

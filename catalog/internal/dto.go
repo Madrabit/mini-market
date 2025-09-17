@@ -8,12 +8,15 @@ type Item struct {
 	UnitPrice int64
 }
 
-type GetItemsRequest struct {
-	ProductIds []uuid.UUID
+type GetCatalogRequest struct {
+	Limit    int64
+	CursorID uuid.UUID
 }
 
-type GetItemsResponse struct {
-	Items []Item
+type GetCatalogResponse struct {
+	Items        []Item
+	NextCursorID uuid.UUID
+	HasMore      bool
 }
 
 type AddItemRequest struct {

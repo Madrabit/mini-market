@@ -46,6 +46,10 @@ type UserResponse struct {
 	Role  string    `json:"role"`
 }
 
+type ListUsersRequest struct {
+	IDs []uuid.UUID `json:"ids"`
+}
+
 type ListUsersResponse struct {
 	Users []UserResponse `json:"users"`
 }

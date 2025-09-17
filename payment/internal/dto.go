@@ -35,6 +35,13 @@ type PaymentRequest struct {
 	Currency string
 }
 
+type CreatePaymentResponse struct {
+	PaymentID uuid.UUID // ID платежа в вашей системе
+	Status    string    // "pending", "requires_action"
+	Amount    int64     // Сумма к оплате (может отличаться от заказа)
+	Currency  string    // Валюта оплаты
+}
+
 // { "Amount": 10000, "OrderId": "order_123", "SuccessURL": "...", "FailURL": "...", "CallbackURL": "https://payment-service.ru/api/webhooks/external" }
 // Ключевой момент! CallbackURL — это адрес Payment Service, куда провайдер будет слать вебхук.
 type PSPRequest struct {
@@ -47,7 +54,7 @@ type PSPRequest struct {
 	CustomerEmail string
 }
 
-type PaymentStatusNotification struct {
+type PaymentStatusResponse struct {
 	OrderID   uuid.UUID
 	PaymentID uuid.UUID
 	Status    Status

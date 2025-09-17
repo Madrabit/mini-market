@@ -1,6 +1,13 @@
 package internal
 
-import "github.com/go-chi/chi/v5"
+import (
+	"encoding/json"
+	"github.com/go-chi/chi/v5"
+	"github.com/google/uuid"
+	"github.com/madrabit/mini-market/payment/internal/common"
+	"go.uber.org/zap"
+	"net/http"
+)
 
 /*
  TODO
@@ -83,10 +90,18 @@ External Payment Provider — это черный ящик, который ра�
 */
 
 type Controller struct {
+	svc    Svc
+	logger *common.Logger
 }
 
-func NewController() *Controller {
-	return &Controller{}
+func NewController(svc Svc, logger common.Logger) *Controller {
+	return &Controller{svc: svc, logger: &logger}
+}
+
+type Svc interface {
+	CreateOrder(req PaymentRequest) (CreatePaymentResponse, error)
+	PSPWebhook(req PSPWebhookRequest) error
+	GetStatus(userID, orderID uuid.UUID) (PaymentStatusResponse, error)
 }
 
 func (c *Controller) Routes() chi.Router {
@@ -98,4 +113,69 @@ func (c *Controller) Routes() chi.Router {
 	// Получить статус оплаты
 	r.Get("{/orderID}", c.GetStatus)
 	return r
+}
+
+func (c *Controller) CreateOrder(w http.ResponseWriter, r *http.Request) {
+	defer func() {
+		err := r.Body.Close()
+		if err != nil {
+			c.logger.Error("failed to create order", zap.Error(err))
+		}
+	}()
+	var req PaymentRequest
+	err := json.NewDecoder(r.Body).Decode(&req)
+	if err != nil {
+		c.logger.Error("failed to create order", zap.Error(err))
+		w.WriteHeader(http.StatusBadRequest)
+		return
+	}
+	resp, err := c.svc.CreateOrder(req)
+	if err != nil {
+		c.logger.Error("failed to create order", zap.Error(err))
+		common.ErrResponse(w, http.StatusBadRequest, error.Error(err))
+		return
+	}
+	common.OkResponse(w, resp)
+}
+
+func (c *Controller) PSPWebhook(w http.ResponseWriter, r *http.Request) {
+	defer func() {
+		err := r.Body.Close()
+		if err != nil {
+			c.logger.Error("failed to catch webhook", zap.Error(err))
+		}
+	}()
+	var req PSPWebhookRequest
+	err := json.NewDecoder(r.Body).Decode(&req)
+	if err != nil {
+		c.logger.Error("failed to decode webhook", zap.Error(err))
+		w.WriteHeader(http.StatusBadRequest)
+		return
+	}
+	err = c.svc.PSPWebhook(req)
+	if err != nil {
+		c.logger.Error("failed to process webhook", zap.Error(err))
+		common.ErrResponse(w, http.StatusBadRequest, error.Error(err))
+		return
+	}
+	w.WriteHeader(http.StatusOK)
+}
+
+func (c *Controller) GetStatus(w http.ResponseWriter, r *http.Request) {
+	user := r.URL.Query().Get("userID")
+	order := r.URL.Query().Get("orderID")
+	userID, err := uuid.Parse(user)
+	orderID, err := uuid.Parse(order)
+	if err != nil || userID == uuid.Nil {
+		c.logger.Warn("invalid param")
+		common.ErrResponse(w, http.StatusBadRequest, "invalid param")
+		return
+	}
+	status, err := c.svc.GetStatus(userID, orderID)
+	if err != nil {
+		c.logger.Error("failed to process webhook", zap.Error(err))
+		common.ErrResponse(w, http.StatusBadRequest, error.Error(err))
+		return
+	}
+	common.OkResponse(w, status)
 }

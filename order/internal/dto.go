@@ -36,9 +36,14 @@ type ItemQty struct {
 	Quantity int       `json:"quantity" validate:"gte=1"`
 }
 
-type CreatRequest struct {
+type CreatOrderRequest struct {
 	UserID uuid.UUID `json:"user_id" validate:"required"`
 	Items  []ItemQty `json:"items" validate:"min=1,dive"`
+}
+
+type UpdatePaymentStatusRequest struct {
+	UserID  uuid.UUID `json:"user_id" validate:"required"`
+	OrderID uuid.UUID
 }
 
 type ItemResponse struct {
@@ -55,4 +60,10 @@ type OrderResponse struct {
 	GrandTotal int64          `json:"grand_total"`
 	Created    time.Time      `json:"created"`
 	Items      []ItemResponse `json:"items"`
+}
+
+type StatusResponse struct {
+	ID     uuid.UUID `json:"id"`
+	UserId uuid.UUID `json:"user_id"`
+	Status Status    `json:"status"`
 }
