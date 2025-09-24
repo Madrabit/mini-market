@@ -20,8 +20,9 @@ type GetCatalogResponse struct {
 }
 
 type AddItemRequest struct {
-	Name  string
-	Price int64
+	ItemID uuid.UUID
+	Name   string
+	Price  int64
 }
 
 type UpdateItemRequest struct {

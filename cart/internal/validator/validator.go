@@ -23,3 +23,7 @@ func (v *Validator) Validate(request any) (err error) {
 	}
 	return err
 }
+
+func (v *Validator) ValidateVar(field any, tag string) (err error) {
+	return v.validator.Var(field, tag)
+}
