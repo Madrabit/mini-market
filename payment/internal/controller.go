@@ -100,7 +100,7 @@ func NewController(svc Svc, logger common.Logger) *Controller {
 
 type Svc interface {
 	CreateOrder(req PaymentRequest) (CreatePaymentResponse, error)
-	PSPWebhook(req PSPWebhookRequest) error
+	PSPWebhook(req PSPWebhookRequest) (PaymentStatusResponse, error)
 	GetStatus(userID, orderID uuid.UUID) (PaymentStatusResponse, error)
 }
 
@@ -152,13 +152,14 @@ func (c *Controller) PSPWebhook(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusBadRequest)
 		return
 	}
-	err = c.svc.PSPWebhook(req)
+	status, err := c.svc.PSPWebhook(req)
 	if err != nil {
 		c.logger.Error("failed to process webhook", zap.Error(err))
 		common.ErrResponse(w, http.StatusBadRequest, error.Error(err))
 		return
 	}
 	w.WriteHeader(http.StatusOK)
+	common.OkResponse(w, status)
 }
 
 func (c *Controller) GetStatus(w http.ResponseWriter, r *http.Request) {

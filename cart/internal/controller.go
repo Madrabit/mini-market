@@ -30,7 +30,7 @@ func NewController(svc Svc, logger common.Logger) *Controller {
 }
 
 type Svc interface {
-	GetCart() (Cart, error)
+	GetCart(userID uuid.UUID) (Cart, error)
 	AddToCart(item AddToCartRequest) error
 	UpdateCart(item UpdateCartItemRequest) error
 	DeleteProduct(id uuid.UUID) error
@@ -50,7 +50,13 @@ func (c *Controller) Routes() chi.Router {
 }
 
 func (c *Controller) GetCart(w http.ResponseWriter, r *http.Request) {
-	cart, err := c.svc.GetCart()
+	mockID, err := uuid.Parse("1b98a34a-cbcf-4e24-a4b8-2a218f5b68fc")
+	if err != nil {
+		c.logger.Error("failed to create uuid", zap.Error(err))
+		common.ErrResponse(w, http.StatusBadRequest, error.Error(err))
+		return
+	}
+	cart, err := c.svc.GetCart(mockID)
 	if err != nil {
 		c.logger.Error("failed to get cart", zap.Error(err))
 		common.ErrResponse(w, http.StatusBadRequest, error.Error(err))

@@ -12,6 +12,8 @@ type Config struct {
 	LogLevel       string
 	LogDevelopMode bool
 	AllowedOrigins []string
+	TestEmail      string
+	TestMessage    string
 }
 
 type DBConfig struct {
@@ -31,6 +33,8 @@ func Load() (Config, error) {
 	var cfg Config = Config{
 		LogLevel:       os.Getenv("LOG_LEVEL"),
 		LogDevelopMode: os.Getenv("LOG_DEVELOP_MODE") == "true",
+		TestEmail:      os.Getenv("TEST_EMAIL"),
+		TestMessage:    os.Getenv("TEST_MESSAGE"),
 		AllowedOrigins: strings.Split(os.Getenv("CORS_ORIGINS"), ","),
 	}
 	if db, err := LoadDbConfig(); err != nil {

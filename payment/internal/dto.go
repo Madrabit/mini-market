@@ -37,7 +37,7 @@ type PaymentRequest struct {
 
 type CreatePaymentResponse struct {
 	PaymentID uuid.UUID // ID платежа в вашей системе
-	Status    string    // "pending", "requires_action"
+	Status    Status    // "pending", "requires_action"
 	Amount    int64     // Сумма к оплате (может отличаться от заказа)
 	Currency  string    // Валюта оплаты
 }

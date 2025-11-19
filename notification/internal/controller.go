@@ -26,7 +26,7 @@ func NewController(svc Svc, logger common.Logger) *Controller {
 
 type Svc interface {
 	Notify(req NotificationRequest) (NotificationResponse, error)
-	NotifyTest(req NotificationRequest) (NotificationResponse, error)
+	NotifyTest(to string) (NotificationResponse, error)
 	GetUserNotifications(id uuid.UUID) ([]NotificationResponse, error)
 }
 
@@ -35,7 +35,7 @@ func (c *Controller) Routes() chi.Router {
 	//отправить конкретное сообщение пользователю
 	r.Post("/notify", c.Notify)
 	//отправить конкретное сообщение пользователю
-	r.Post("/notify/test", c.NotifyTest)
+	r.Post("/notify/test/{to}", c.NotifyTest)
 	//История уведомлений
 	r.Get("/notifications/{userID}", c.GetUserNotifications)
 	return r
@@ -55,7 +55,7 @@ func (c *Controller) Notify(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusBadRequest)
 		return
 	}
-	resp, err := c.svc.NotifyTest(req)
+	resp, err := c.svc.Notify(req)
 	if err != nil {
 		c.logger.Error("failed to notify", zap.Error(err))
 		common.ErrResponse(w, http.StatusBadRequest, error.Error(err))
@@ -65,20 +65,13 @@ func (c *Controller) Notify(w http.ResponseWriter, r *http.Request) {
 }
 
 func (c *Controller) NotifyTest(w http.ResponseWriter, r *http.Request) {
-	defer func() {
-		err := r.Body.Close()
-		if err != nil {
-			c.logger.Error("failed to notify", zap.Error(err))
-		}
-	}()
-	var req NotificationRequest
-	err := json.NewDecoder(r.Body).Decode(&req)
-	if err != nil {
-		c.logger.Error("failed to notify", zap.Error(err))
-		w.WriteHeader(http.StatusBadRequest)
+	to := r.URL.Query().Get("to")
+	if to == "" {
+		c.logger.Warn("invalid param")
+		common.ErrResponse(w, http.StatusBadRequest, "invalid param")
 		return
 	}
-	resp, err := c.svc.Notify(req)
+	resp, err := c.svc.NotifyTest(to)
 	if err != nil {
 		c.logger.Error("failed to notify", zap.Error(err))
 		common.ErrResponse(w, http.StatusBadRequest, error.Error(err))
