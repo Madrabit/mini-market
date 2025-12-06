@@ -9,25 +9,25 @@ import (
 	"net/http"
 )
 
-type Controller struct {
-	svc    Svc
+type ControllerUsers struct {
+	svc    SvcUsers
 	logger *common.Logger
 }
 
-func NewController(svc Svc, logger common.Logger) *Controller {
-	return &Controller{svc: svc, logger: &logger}
+func NewControllerUsers(svc SvcUsers, logger *common.Logger) *ControllerUsers {
+	return &ControllerUsers{svc: svc, logger: logger}
 }
 
-type Svc interface {
+type SvcUsers interface {
 	CreateUser(req CreateUserReq) error
-	UpdateUser(req UpdateUserReq) error
+	UpdateUser(id uuid.UUID, req UpdateUserReq) error
 	DeleteUser(DeleteUserReq uuid.UUID) error
 	ChangeRole(req SetUserRoleReq) error
 	GetUserByID(userID uuid.UUID) (User, error)
-	GetUsersByIds(IDs ListUsersRequest) (ListUsersResponse, error)
+	GetUsersByIds(req ListUsersRequest) (ListUsersResponse, error)
 }
 
-func (c *Controller) Routes() chi.Router {
+func (c *ControllerUsers) Routes() chi.Router {
 	r := chi.NewRouter()
 	//Создание пользователя
 	r.Post("/", c.CreateUser)
@@ -36,7 +36,7 @@ func (c *Controller) Routes() chi.Router {
 	//Обновление пользователя
 	r.Delete("/{userID}", c.DeleteUser)
 	//Сменить роль пользователя
-	r.Patch("{usersID}/roles", c.ChangeRole)
+	r.Patch("/{usersID}/roles", c.ChangeRole)
 	// получить список пользователей
 	r.Get("/", c.GetUsersByIds)
 	// получить одного пользователя
@@ -44,10 +44,9 @@ func (c *Controller) Routes() chi.Router {
 	return r
 }
 
-func (c *Controller) CreateUser(w http.ResponseWriter, r *http.Request) {
+func (c *ControllerUsers) CreateUser(w http.ResponseWriter, r *http.Request) {
 	defer func() {
-		err := r.Body.Close()
-		if err != nil {
+		if err := r.Body.Close(); err != nil {
 			c.logger.Error("failed to close request body", zap.Error(err))
 		}
 	}()
@@ -68,21 +67,27 @@ func (c *Controller) CreateUser(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusOK)
 }
 
-func (c *Controller) UpdateUser(w http.ResponseWriter, r *http.Request) {
+func (c *ControllerUsers) UpdateUser(w http.ResponseWriter, r *http.Request) {
+	user := chi.URLParam(r, "userID")
+	userID, err := uuid.Parse(user)
+	if err != nil || userID == uuid.Nil {
+		c.logger.Warn("invalid param")
+		common.ErrResponse(w, http.StatusBadRequest, "invalid param")
+		return
+	}
 	defer func() {
-		err := r.Body.Close()
-		if err != nil {
+		if err := r.Body.Close(); err != nil {
 			c.logger.Error("failed to close request body", zap.Error(err))
 		}
 	}()
 	var req UpdateUserReq
-	err := json.NewDecoder(r.Body).Decode(&req)
+	err = json.NewDecoder(r.Body).Decode(&req)
 	if err != nil {
 		c.logger.Error("failed to decode update user request", zap.Error(err))
 		w.WriteHeader(http.StatusBadRequest)
 		return
 	}
-	err = c.svc.UpdateUser(req)
+	err = c.svc.UpdateUser(userID, req)
 	if err != nil {
 		c.logger.Error("failed to update user", zap.Error(err))
 		common.ErrResponse(w, http.StatusBadRequest, error.Error(err))
@@ -92,8 +97,8 @@ func (c *Controller) UpdateUser(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusOK)
 }
 
-func (c *Controller) DeleteUser(w http.ResponseWriter, r *http.Request) {
-	user := r.URL.Query().Get("userID")
+func (c *ControllerUsers) DeleteUser(w http.ResponseWriter, r *http.Request) {
+	user := chi.URLParam(r, "userID")
 	userID, err := uuid.Parse(user)
 	if err != nil || userID == uuid.Nil {
 		c.logger.Warn("invalid param")
@@ -110,10 +115,9 @@ func (c *Controller) DeleteUser(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusOK)
 }
 
-func (c *Controller) ChangeRole(w http.ResponseWriter, r *http.Request) {
+func (c *ControllerUsers) ChangeRole(w http.ResponseWriter, r *http.Request) {
 	defer func() {
-		err := r.Body.Close()
-		if err != nil {
+		if err := r.Body.Close(); err != nil {
 			c.logger.Error("failed to close request body", zap.Error(err))
 		}
 	}()
@@ -134,10 +138,9 @@ func (c *Controller) ChangeRole(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusOK)
 }
 
-func (c *Controller) GetUsersByIds(w http.ResponseWriter, r *http.Request) {
+func (c *ControllerUsers) GetUsersByIds(w http.ResponseWriter, r *http.Request) {
 	defer func() {
-		err := r.Body.Close()
-		if err != nil {
+		if err := r.Body.Close(); err != nil {
 			c.logger.Error("failed to close request body", zap.Error(err))
 		}
 	}()
@@ -158,8 +161,8 @@ func (c *Controller) GetUsersByIds(w http.ResponseWriter, r *http.Request) {
 
 }
 
-func (c *Controller) GetUserByID(w http.ResponseWriter, r *http.Request) {
-	user := r.URL.Query().Get("userID")
+func (c *ControllerUsers) GetUserByID(w http.ResponseWriter, r *http.Request) {
+	user := chi.URLParam(r, "userID")
 	userID, err := uuid.Parse(user)
 	if err != nil || userID == uuid.Nil {
 		c.logger.Warn("invalid param")

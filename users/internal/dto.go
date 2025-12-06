@@ -7,23 +7,17 @@ type User struct {
 	Name         string
 	Email        string
 	PasswordHash string
-	Role         Role
-}
-
-type Role struct {
-	Id   uuid.UUID
-	Name string
+	Roles        []Role
 }
 
 type CreateUserReq struct {
 	Name     string
 	Email    string
 	Password string
-	Role     Role
+	Role     uuid.UUID `json:"role_id"`
 }
 
 type UpdateUserReq struct {
-	UserID   uuid.UUID
 	Name     string
 	Email    string
 	Password string
@@ -43,7 +37,7 @@ type UserResponse struct {
 	ID    uuid.UUID `json:"id"`
 	Name  string    `json:"name"`
 	Email string    `json:"email"`
-	Role  string    `json:"role"`
+	Role  []Role    `json:"role"`
 }
 
 type ListUsersRequest struct {
@@ -52,4 +46,26 @@ type ListUsersRequest struct {
 
 type ListUsersResponse struct {
 	Users []UserResponse `json:"users"`
+}
+
+type Role struct {
+	Id   uuid.UUID
+	Name string
+}
+
+type CreateRoleReq struct {
+	Name string
+}
+
+type UpdateRoleReq struct {
+	Name string
+}
+
+type DeleteRoleReq struct {
+	RoleID uuid.UUID
+}
+
+type RoleResponse struct {
+	ID   uuid.UUID `json:"id"`
+	Name string    `json:"name"`
 }

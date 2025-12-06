@@ -1,6 +1,7 @@
 package common
 
 import (
+	"fmt"
 	"github.com/kelseyhightower/envconfig"
 	"os"
 	"strings"
@@ -15,13 +16,13 @@ type Config struct {
 }
 
 type DBConfig struct {
-	Server   string `envconfig:"SERVER" required:"true"`
+	Host     string `envconfig:"HOST" required:"true"`
 	Port     int    `envconfig:"PORT" required:"true"`
 	User     string `envconfig:"USER" required:"true"`
 	Pass     string `envconfig:"PASS" required:"true"`
+	Name     string `envconfig:"NAME" required:"true"`
 	Database string `envconfig:"DATABASE" required:"true"`
 }
-
 type ServerConfig struct {
 	Address string `envconfig:"ADDRESS" required:"true"`
 	Port    string `envconfig:"PORT" required:"true"`
@@ -62,4 +63,11 @@ func LoadServerConfig() (ServerConfig, error) {
 		return ServerConfig{}, err
 	}
 	return cfg, nil
+}
+
+func (db DBConfig) DSN() string {
+	return fmt.Sprintf(
+		"host=%s port=%d user=%s password=%s dbname=%s sslmode=disable",
+		db.Host, db.Port, db.User, db.Pass, db.Name,
+	)
 }
