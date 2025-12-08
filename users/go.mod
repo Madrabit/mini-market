@@ -10,6 +10,7 @@ require (
 	github.com/joho/godotenv v1.5.1
 	github.com/kelseyhightower/envconfig v1.4.0
 	github.com/lib/pq v1.10.9
+	github.com/quii/go-graceful-shutdown v0.6.0
 	go.uber.org/zap v1.27.0
 	golang.org/x/crypto v0.42.0
 )
