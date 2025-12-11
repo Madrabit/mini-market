@@ -45,9 +45,10 @@ func build(db *sqlx.DB, logger *common.Logger) *web.Server {
 	server := web.NewServer()
 	vld := validator.New()
 	repository := internal.NewRepository(db)
-	service := internal.NewService(repository, vld)
-	controllerUsers := internal.NewControllerUsers(service, logger)
-	controllerRoles := internal.NewControllerRoles(service, logger)
+	roleService := internal.NewRoleService(repository, vld)
+	userService := internal.NewUserService(repository, roleService, vld)
+	controllerUsers := internal.NewControllerUsers(userService, logger)
+	controllerRoles := internal.NewControllerRoles(roleService, logger)
 	server.Router.Route("/api", func(r chi.Router) {
 		r.Route("/v1", func(r chi.Router) {
 			r.Mount("/users", controllerUsers.Routes())

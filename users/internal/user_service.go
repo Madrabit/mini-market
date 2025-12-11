@@ -11,7 +11,7 @@ import (
 
 type UserService struct {
 	userRepo  UserRepo
-	roleRepo  RoleRepo
+	roleSvc   SvcRoles
 	validator Validator
 }
 
@@ -27,10 +27,10 @@ type UserRepo interface {
 	GetUserRoles(userID uuid.UUID) ([]Role, error)
 }
 
-func NewUserService(userRepo UserRepo, roleRepo RoleRepo, validator Validator) *UserService {
+func NewUserService(userRepo UserRepo, roleSvc SvcRoles, validator Validator) *UserService {
 	return &UserService{
 		userRepo:  userRepo,
-		roleRepo:  roleRepo,
+		roleSvc:   roleSvc,
 		validator: validator,
 	}
 }
@@ -45,7 +45,7 @@ func (s *UserService) CreateUser(req CreateUserReq) (err error) {
 		return fmt.Errorf("user service: failed to hash password: %w", err)
 	}
 	const defaultRoleName = "basic"
-	role, err := s.roleRepo.GetRoleByName(defaultRoleName)
+	role, err := s.roleSvc.GetRoleByName(defaultRoleName)
 	if err != nil {
 		return fmt.Errorf("user service: create user: failed to get role by name: %w", err)
 	}

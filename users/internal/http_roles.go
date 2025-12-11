@@ -23,6 +23,7 @@ type SvcRoles interface {
 	UpdateRole(id uuid.UUID, req UpdateRoleReq) error
 	DeleteRole(id uuid.UUID) error
 	GetUsersByRole(role string) (ListUsersResponse, error)
+	GetRoleByName(name string) (Role, error)
 }
 
 func (c *ControllerRoles) Routes() chi.Router {

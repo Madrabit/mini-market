@@ -19,6 +19,7 @@ type RoleRepo interface {
 	DeleteRole(id uuid.UUID) error
 	GetAllRoles() ([]Role, error)
 	GetRoleByName(name string) (Role, error)
+	GetUsersByRole(role string) ([]User, error)
 }
 
 func NewRoleService(repo RoleRepo, validator Validator) *RoleService {
@@ -72,4 +73,30 @@ func (s *RoleService) GetRoleByName(name string) (Role, error) {
 		return Role{}, fmt.Errorf("role service: failed to get role by role name: %w", err)
 	}
 	return role, nil
+}
+
+func (s *RoleService) GetAllRoles() ([]Role, error) {
+	roles, err := s.repo.GetAllRoles()
+	if err != nil {
+		return nil, fmt.Errorf("role service: failed to get all roles: %w", err)
+	}
+	return roles, nil
+}
+
+func (s *RoleService) GetUsersByRole(name string) (ListUsersResponse, error) {
+	users, err := s.repo.GetUsersByRole(name)
+	if err != nil {
+		return ListUsersResponse{}, fmt.Errorf("role service: failed to get users by role: %w", err)
+	}
+	userResp := make([]UserResponse, 0, len(users))
+	for _, u := range users {
+		userResp = append(userResp, UserResponse{
+			ID:    u.Id,
+			Name:  u.Name,
+			Email: u.Email,
+		})
+	}
+	return ListUsersResponse{
+		userResp,
+	}, nil
 }
