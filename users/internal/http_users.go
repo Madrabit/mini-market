@@ -22,7 +22,6 @@ type SvcUsers interface {
 	CreateUser(req CreateUserReq) error
 	UpdateUser(id uuid.UUID, req UpdateUserReq) error
 	DeleteUser(DeleteUserReq uuid.UUID) error
-	ChangeRole(req SetUserRoleReq) error
 	GetUserByID(userID uuid.UUID) (User, error)
 	GetUsersByIds(req ListUsersRequest) (ListUsersResponse, error)
 }
@@ -35,8 +34,6 @@ func (c *ControllerUsers) Routes() chi.Router {
 	r.Patch("/{userID}", c.UpdateUser)
 	//Обновление пользователя
 	r.Delete("/{userID}", c.DeleteUser)
-	//Сменить роль пользователя
-	r.Patch("/{usersID}/roles", c.ChangeRole)
 	// получить список пользователей
 	r.Get("/", c.GetUsersByIds)
 	// получить одного пользователя
@@ -108,29 +105,6 @@ func (c *ControllerUsers) DeleteUser(w http.ResponseWriter, r *http.Request) {
 	err = c.svc.DeleteUser(userID)
 	if err != nil {
 		c.logger.Error("failed to delete user", zap.Error(err))
-		common.ErrResponse(w, http.StatusBadRequest, error.Error(err))
-		return
-	}
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(http.StatusOK)
-}
-
-func (c *ControllerUsers) ChangeRole(w http.ResponseWriter, r *http.Request) {
-	defer func() {
-		if err := r.Body.Close(); err != nil {
-			c.logger.Error("failed to close request body", zap.Error(err))
-		}
-	}()
-	var req SetUserRoleReq
-	err := json.NewDecoder(r.Body).Decode(&req)
-	if err != nil {
-		c.logger.Error("failed to decode user role changer", zap.Error(err))
-		w.WriteHeader(http.StatusBadRequest)
-		return
-	}
-	err = c.svc.ChangeRole(req)
-	if err != nil {
-		c.logger.Error("failed to change user role", zap.Error(err))
 		common.ErrResponse(w, http.StatusBadRequest, error.Error(err))
 		return
 	}

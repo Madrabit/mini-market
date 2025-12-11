@@ -28,16 +28,10 @@ type DeleteUserReq struct {
 	UserID uuid.UUID
 }
 
-type SetUserRoleReq struct {
-	UserID uuid.UUID
-	Role   Role
-}
-
 type UserResponse struct {
 	ID    uuid.UUID `json:"id"`
 	Name  string    `json:"name"`
 	Email string    `json:"email"`
-	Role  []Role    `json:"role"`
 }
 
 type ListUsersRequest struct {
