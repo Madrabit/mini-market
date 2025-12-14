@@ -3,29 +3,22 @@ package internal
 import "github.com/google/uuid"
 
 type User struct {
-	Id           uuid.UUID
-	Name         string
-	Email        string
-	PasswordHash string
-	Roles        []Role
+	Id           uuid.UUID `json:"id" db:"id"`
+	Name         string    `json:"name"  db:"name"`
+	Email        string    `json:"email" db:"email"`
+	PasswordHash string    `json:"-" db:"password_hash"`
+	Roles        []Role    `json:"roles" db:"-"`
 }
 
 type CreateUserReq struct {
-	Name     string
-	Email    string
-	Password string
-	Role     uuid.UUID `json:"role_id"`
+	Name     string `json:"name" validate:"required,min=2"`
+	Email    string `json:"email" validate:"required,email"`
+	Password string `json:"password" validate:"required,min=8"`
 }
 
 type UpdateUserReq struct {
-	Name     string
-	Email    string
-	Password string
-	Role     Role
-}
-
-type DeleteUserReq struct {
-	UserID uuid.UUID
+	Name  string `json:"name" validate:"required,min=2"`
+	Email string `json:"email" validate:"required,email"`
 }
 
 type UserResponse struct {
@@ -35,7 +28,7 @@ type UserResponse struct {
 }
 
 type ListUsersRequest struct {
-	IDs []uuid.UUID `json:"ids"`
+	IDs []uuid.UUID `json:"ids" validate:"required,gt=1"`
 }
 
 type ListUsersResponse struct {
@@ -43,20 +36,16 @@ type ListUsersResponse struct {
 }
 
 type Role struct {
-	Id   uuid.UUID
-	Name string
+	Id   uuid.UUID `json:"id" db:"id"`
+	Name string    `json:"name" db:"name"`
 }
 
 type CreateRoleReq struct {
-	Name string
+	Name string `json:"name" validate:"required,min=2"`
 }
 
 type UpdateRoleReq struct {
-	Name string
-}
-
-type DeleteRoleReq struct {
-	RoleID uuid.UUID
+	Name string `json:"name" validate:"required,min=2"`
 }
 
 type RoleResponse struct {

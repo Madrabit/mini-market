@@ -8,6 +8,7 @@ import (
 	"github.com/madrabit/mini-market/users/internal"
 	"github.com/madrabit/mini-market/users/internal/common"
 	"github.com/madrabit/mini-market/users/internal/database"
+	"github.com/madrabit/mini-market/users/internal/info"
 	"github.com/madrabit/mini-market/users/internal/validator"
 	"github.com/madrabit/mini-market/users/internal/web"
 	gracefulshutdown "github.com/quii/go-graceful-shutdown"
@@ -31,7 +32,7 @@ func main() {
 			logger.Error("failed to close db")
 		}
 	}()
-	server := build(db, logger)
+	server := build(db, logger, cfg)
 	httpServer := &http.Server{Addr: cfg.Server.Port, Handler: server.Router}
 	ctx := context.Background()
 	srv := gracefulshutdown.NewServer(httpServer)
@@ -41,7 +42,7 @@ func main() {
 	logger.Info("shutdown gracefully! all responses were sent")
 }
 
-func build(db *sqlx.DB, logger *common.Logger) *web.Server {
+func build(db *sqlx.DB, logger *common.Logger, cfg *common.Config) *web.Server {
 	server := web.NewServer()
 	vld := validator.New()
 	repository := internal.NewRepository(db)
@@ -49,10 +50,13 @@ func build(db *sqlx.DB, logger *common.Logger) *web.Server {
 	userService := internal.NewUserService(repository, roleService, vld)
 	controllerUsers := internal.NewControllerUsers(userService, logger)
 	controllerRoles := internal.NewControllerRoles(roleService, logger)
+	controllerInfo := info.NewInfoController(logger, cfg, db)
+	server.Router.Mount("/", controllerInfo.Routes())
 	server.Router.Route("/api", func(r chi.Router) {
 		r.Route("/v1", func(r chi.Router) {
 			r.Mount("/users", controllerUsers.Routes())
 			r.Mount("/roles", controllerRoles.Routes())
+			r.Mount("/info", controllerInfo.Routes())
 		})
 	})
 	return server

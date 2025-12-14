@@ -15,7 +15,7 @@ func ConnectDb() *sqlx.DB {
 	return ConnectDbWithCfg(cfg)
 }
 
-func ConnectDbWithCfg(cfg common.Config) *sqlx.DB {
+func ConnectDbWithCfg(cfg *common.Config) *sqlx.DB {
 	db := sqlx.MustConnect(cfg.DB.Database, cfg.DB.DSN())
 	db.SetMaxIdleConns(5)
 	db.SetMaxOpenConns(20)

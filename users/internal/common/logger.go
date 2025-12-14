@@ -9,7 +9,7 @@ type Logger struct {
 	*zap.Logger
 }
 
-func NewLogger(cfg Config) *Logger {
+func NewLogger(cfg *Config) *Logger {
 	var zapEncoderCfg = zapcore.EncoderConfig{
 		TimeKey:          "timestamp",
 		LevelKey:         "level",

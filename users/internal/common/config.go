@@ -12,6 +12,8 @@ type Config struct {
 	Server         ServerConfig
 	LogLevel       string
 	LogDevelopMode bool
+	AppName        string
+	AppVersion     string
 	AllowedOrigins []string
 }
 
@@ -28,23 +30,25 @@ type ServerConfig struct {
 	Port    string `envconfig:"PORT" required:"true"`
 }
 
-func Load() (Config, error) {
+func Load() (*Config, error) {
 	var cfg Config = Config{
 		LogLevel:       os.Getenv("LOG_LEVEL"),
 		LogDevelopMode: os.Getenv("LOG_DEVELOP_MODE") == "true",
+		AppName:        os.Getenv("APP_NAME"),
+		AppVersion:     os.Getenv("APP_VERSION"),
 		AllowedOrigins: strings.Split(os.Getenv("CORS_ORIGINS"), ","),
 	}
 	if db, err := LoadDbConfig(); err != nil {
-		return Config{}, err
+		return &Config{}, err
 	} else {
 		cfg.DB = db
 	}
 	if server, err := LoadServerConfig(); err != nil {
-		return Config{}, err
+		return &Config{}, err
 	} else {
 		cfg.Server = server
 	}
-	return cfg, nil
+	return &cfg, nil
 }
 
 func LoadDbConfig() (DBConfig, error) {
