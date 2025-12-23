@@ -1,12 +1,14 @@
 package internal
 
 import (
+	"context"
 	"encoding/json"
 	"github.com/go-chi/chi/v5"
 	"github.com/google/uuid"
 	"github.com/madrabit/mini-market/users/internal/common"
 	"go.uber.org/zap"
 	"net/http"
+	"time"
 )
 
 type ControllerUsers struct {
@@ -19,11 +21,11 @@ func NewControllerUsers(svc SvcUsers, logger *common.Logger) *ControllerUsers {
 }
 
 type SvcUsers interface {
-	CreateUser(req CreateUserReq) error
-	UpdateUser(id uuid.UUID, req UpdateUserReq) error
-	DeleteUser(DeleteUserReq uuid.UUID) error
-	GetUserByID(userID uuid.UUID) (User, error)
-	GetUsersByIds(req ListUsersRequest) (ListUsersResponse, error)
+	CreateUser(ctx context.Context, req CreateUserReq) error
+	UpdateUser(ctx context.Context, id uuid.UUID, req UpdateUserReq) error
+	DeleteUser(ctx context.Context, DeleteUserReq uuid.UUID) error
+	GetUserByID(ctx context.Context, userID uuid.UUID) (User, error)
+	GetUsersByIds(ctx context.Context, req ListUsersRequest) (ListUsersResponse, error)
 }
 
 func (c *ControllerUsers) Routes() chi.Router {
@@ -34,14 +36,18 @@ func (c *ControllerUsers) Routes() chi.Router {
 	r.Patch("/{userID}", c.UpdateUser)
 	//Обновление пользователя
 	r.Delete("/{userID}", c.DeleteUser)
-	// получить список пользователей
-	r.Get("/", c.GetUsersByIds)
+	// выводить всех пользователей по пагинации
+	r.Get("/{userID}", c.GetUserByID)
+	// получить список пользователей по id
+	r.Post("/search/", c.GetUsersByIds)
 	// получить одного пользователя
 	r.Get("/{userID}", c.GetUserByID)
 	return r
 }
 
 func (c *ControllerUsers) CreateUser(w http.ResponseWriter, r *http.Request) {
+	ctx, cancel := context.WithTimeout(r.Context(), time.Second)
+	defer cancel()
 	defer func() {
 		if err := r.Body.Close(); err != nil {
 			c.logger.Error("failed to close request body", zap.Error(err))
@@ -54,7 +60,7 @@ func (c *ControllerUsers) CreateUser(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusBadRequest)
 		return
 	}
-	err = c.svc.CreateUser(req)
+	err = c.svc.CreateUser(ctx, req)
 	if err != nil {
 		c.logger.Error("failed to create user", zap.Error(err))
 		common.ErrResponse(w, http.StatusBadRequest, error.Error(err))
@@ -65,6 +71,8 @@ func (c *ControllerUsers) CreateUser(w http.ResponseWriter, r *http.Request) {
 }
 
 func (c *ControllerUsers) UpdateUser(w http.ResponseWriter, r *http.Request) {
+	ctx, cancel := context.WithTimeout(r.Context(), time.Second)
+	defer cancel()
 	user := chi.URLParam(r, "userID")
 	userID, err := uuid.Parse(user)
 	if err != nil || userID == uuid.Nil {
@@ -84,7 +92,7 @@ func (c *ControllerUsers) UpdateUser(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusBadRequest)
 		return
 	}
-	err = c.svc.UpdateUser(userID, req)
+	err = c.svc.UpdateUser(ctx, userID, req)
 	if err != nil {
 		c.logger.Error("failed to update user", zap.Error(err))
 		common.ErrResponse(w, http.StatusBadRequest, error.Error(err))
@@ -95,6 +103,8 @@ func (c *ControllerUsers) UpdateUser(w http.ResponseWriter, r *http.Request) {
 }
 
 func (c *ControllerUsers) DeleteUser(w http.ResponseWriter, r *http.Request) {
+	ctx, cancel := context.WithTimeout(r.Context(), time.Second)
+	defer cancel()
 	user := chi.URLParam(r, "userID")
 	userID, err := uuid.Parse(user)
 	if err != nil || userID == uuid.Nil {
@@ -102,7 +112,7 @@ func (c *ControllerUsers) DeleteUser(w http.ResponseWriter, r *http.Request) {
 		common.ErrResponse(w, http.StatusBadRequest, "invalid param")
 		return
 	}
-	err = c.svc.DeleteUser(userID)
+	err = c.svc.DeleteUser(ctx, userID)
 	if err != nil {
 		c.logger.Error("failed to delete user", zap.Error(err))
 		common.ErrResponse(w, http.StatusBadRequest, error.Error(err))
@@ -113,6 +123,8 @@ func (c *ControllerUsers) DeleteUser(w http.ResponseWriter, r *http.Request) {
 }
 
 func (c *ControllerUsers) GetUsersByIds(w http.ResponseWriter, r *http.Request) {
+	ctx, cancel := context.WithTimeout(r.Context(), time.Second)
+	defer cancel()
 	defer func() {
 		if err := r.Body.Close(); err != nil {
 			c.logger.Error("failed to close request body", zap.Error(err))
@@ -125,7 +137,7 @@ func (c *ControllerUsers) GetUsersByIds(w http.ResponseWriter, r *http.Request) 
 		w.WriteHeader(http.StatusBadRequest)
 		return
 	}
-	users, err := c.svc.GetUsersByIds(req)
+	users, err := c.svc.GetUsersByIds(ctx, req)
 	if err != nil {
 		c.logger.Error("failed to create user", zap.Error(err))
 		common.ErrResponse(w, http.StatusBadRequest, error.Error(err))
@@ -136,6 +148,8 @@ func (c *ControllerUsers) GetUsersByIds(w http.ResponseWriter, r *http.Request) 
 }
 
 func (c *ControllerUsers) GetUserByID(w http.ResponseWriter, r *http.Request) {
+	ctx, cancel := context.WithTimeout(r.Context(), time.Second)
+	defer cancel()
 	user := chi.URLParam(r, "userID")
 	userID, err := uuid.Parse(user)
 	if err != nil || userID == uuid.Nil {
@@ -143,7 +157,7 @@ func (c *ControllerUsers) GetUserByID(w http.ResponseWriter, r *http.Request) {
 		common.ErrResponse(w, http.StatusBadRequest, "invalid param")
 		return
 	}
-	resp, err := c.svc.GetUserByID(userID)
+	resp, err := c.svc.GetUserByID(ctx, userID)
 	if err != nil {
 		c.logger.Error("failed to get user by id", zap.Error(err))
 		common.ErrResponse(w, http.StatusBadRequest, error.Error(err))

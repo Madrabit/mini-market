@@ -1,6 +1,7 @@
 package internal
 
 import (
+	"context"
 	"database/sql"
 	"errors"
 	"fmt"
@@ -17,14 +18,14 @@ type UserService struct {
 
 type UserRepo interface {
 	BeginTransaction() (*sqlx.Tx, error)
-	CreateUser(tx *sqlx.Tx, user User) error
-	AddUserRoles(tx *sqlx.Tx, userId uuid.UUID, roles []uuid.UUID) error
-	UpdateUser(user User) error
-	DeleteUser(userID uuid.UUID) error
-	GetUserByID(userID uuid.UUID) (User, error)
-	GetUsersByIds(IDs []uuid.UUID) ([]User, error)
-	GetUsersByRole(role string) ([]User, error)
-	GetUserRoles(userID uuid.UUID) ([]Role, error)
+	CreateUser(ctx context.Context, tx *sqlx.Tx, user User) error
+	AddUserRoles(ctx context.Context, tx *sqlx.Tx, userId uuid.UUID, roles []uuid.UUID) error
+	UpdateUser(ctx context.Context, user User) error
+	DeleteUser(ctx context.Context, userID uuid.UUID) error
+	GetUserByID(ctx context.Context, userID uuid.UUID) (User, error)
+	GetUsersByIds(ctx context.Context, IDs []uuid.UUID) ([]User, error)
+	GetUsersByRole(ctx context.Context, role string) ([]User, error)
+	GetUserRoles(ctx context.Context, userID uuid.UUID) ([]Role, error)
 }
 
 func NewUserService(userRepo UserRepo, roleSvc SvcRoles, validator Validator) *UserService {
@@ -35,7 +36,7 @@ func NewUserService(userRepo UserRepo, roleSvc SvcRoles, validator Validator) *U
 	}
 }
 
-func (s *UserService) CreateUser(req CreateUserReq) (err error) {
+func (s *UserService) CreateUser(ctx context.Context, req CreateUserReq) (err error) {
 	if err := s.validator.Validate(req); err != nil {
 		return &common.RequestValidationError{Message: err.Error()}
 	}
@@ -45,7 +46,7 @@ func (s *UserService) CreateUser(req CreateUserReq) (err error) {
 		return fmt.Errorf("user service: failed to hash password: %w", err)
 	}
 	const defaultRoleName = "basic"
-	role, err := s.roleSvc.GetRoleByName(defaultRoleName)
+	role, err := s.roleSvc.GetRoleByName(ctx, defaultRoleName)
 	if err != nil {
 		return fmt.Errorf("user service: create user: failed to get role by name: %w", err)
 	}
@@ -65,11 +66,11 @@ func (s *UserService) CreateUser(req CreateUserReq) (err error) {
 			_ = tx.Rollback()
 		}
 	}()
-	err = s.userRepo.CreateUser(tx, user)
+	err = s.userRepo.CreateUser(ctx, tx, user)
 	if err != nil {
 		return fmt.Errorf("user service: failed to create user: %w", err)
 	}
-	err = s.userRepo.AddUserRoles(tx, user.Id, []uuid.UUID{role.Id})
+	err = s.userRepo.AddUserRoles(ctx, tx, user.Id, []uuid.UUID{role.Id})
 	if err != nil {
 		return fmt.Errorf("user service: failed add roles to user: %w", err)
 	}
@@ -80,7 +81,7 @@ func (s *UserService) CreateUser(req CreateUserReq) (err error) {
 	return nil
 }
 
-func (s *UserService) UpdateUser(id uuid.UUID, req UpdateUserReq) error {
+func (s *UserService) UpdateUser(ctx context.Context, id uuid.UUID, req UpdateUserReq) error {
 	if err := s.validator.Validate(req); err != nil {
 		return &common.RequestValidationError{Message: err.Error()}
 	}
@@ -89,7 +90,7 @@ func (s *UserService) UpdateUser(id uuid.UUID, req UpdateUserReq) error {
 		Name:  req.Name,
 		Email: req.Email,
 	}
-	err := s.userRepo.UpdateUser(user)
+	err := s.userRepo.UpdateUser(ctx, user)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			return fmt.Errorf("user service: user not found: %w", err)
@@ -99,34 +100,34 @@ func (s *UserService) UpdateUser(id uuid.UUID, req UpdateUserReq) error {
 	return nil
 }
 
-func (s *UserService) DeleteUser(userID uuid.UUID) error {
-	if err := s.userRepo.DeleteUser(userID); err != nil {
+func (s *UserService) DeleteUser(ctx context.Context, userID uuid.UUID) error {
+	if err := s.userRepo.DeleteUser(ctx, userID); err != nil {
 		return fmt.Errorf("user service: failed to delete user: %w", err)
 	}
 	return nil
 }
 
-func (s *UserService) GetUserByID(userID uuid.UUID) (User, error) {
-	user, err := s.userRepo.GetUserByID(userID)
+func (s *UserService) GetUserByID(ctx context.Context, userID uuid.UUID) (User, error) {
+	user, err := s.userRepo.GetUserByID(ctx, userID)
 	if err != nil {
 		return User{}, fmt.Errorf("user service: failed to get user by ID: %w", err)
 	}
 	return user, nil
 }
 
-func (s *UserService) GetUserRoles(userID uuid.UUID) ([]Role, error) {
-	roles, err := s.userRepo.GetUserRoles(userID)
+func (s *UserService) GetUserRoles(ctx context.Context, userID uuid.UUID) ([]Role, error) {
+	roles, err := s.userRepo.GetUserRoles(ctx, userID)
 	if err != nil {
 		return nil, fmt.Errorf("user service: failed to get user roles: %w", err)
 	}
 	return roles, nil
 }
 
-func (s *UserService) GetUsersByIds(IDs ListUsersRequest) (ListUsersResponse, error) {
+func (s *UserService) GetUsersByIds(ctx context.Context, IDs ListUsersRequest) (ListUsersResponse, error) {
 	if err := s.validator.Validate(IDs); err != nil {
 		return ListUsersResponse{}, &common.RequestValidationError{Message: err.Error()}
 	}
-	users, err := s.userRepo.GetUsersByIds(IDs.IDs)
+	users, err := s.userRepo.GetUsersByIds(ctx, IDs.IDs)
 	if err != nil {
 		return ListUsersResponse{}, fmt.Errorf("user service: failed to get user by IDs: %w", err)
 	}
@@ -144,8 +145,8 @@ func (s *UserService) GetUsersByIds(IDs ListUsersRequest) (ListUsersResponse, er
 	return response, nil
 }
 
-func (s *UserService) GetUsersByRole(role string) (ListUsersResponse, error) {
-	users, err := s.userRepo.GetUsersByRole(role)
+func (s *UserService) GetUsersByRole(ctx context.Context, role string) (ListUsersResponse, error) {
+	users, err := s.userRepo.GetUsersByRole(ctx, role)
 	if err != nil {
 		return ListUsersResponse{}, fmt.Errorf("user service: failed to get users by role: %w", err)
 	}

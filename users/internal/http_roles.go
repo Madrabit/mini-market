@@ -1,12 +1,14 @@
 package internal
 
 import (
+	"context"
 	"encoding/json"
 	"github.com/go-chi/chi/v5"
 	"github.com/google/uuid"
 	"github.com/madrabit/mini-market/users/internal/common"
 	"go.uber.org/zap"
 	"net/http"
+	"time"
 )
 
 type ControllerRoles struct {
@@ -19,11 +21,11 @@ func NewControllerRoles(svc SvcRoles, logger *common.Logger) *ControllerRoles {
 }
 
 type SvcRoles interface {
-	CreateRole(req CreateRoleReq) error
-	UpdateRole(id uuid.UUID, req UpdateRoleReq) error
-	DeleteRole(id uuid.UUID) error
-	GetUsersByRole(role string) (ListUsersResponse, error)
-	GetRoleByName(name string) (Role, error)
+	CreateRole(ctx context.Context, req CreateRoleReq) error
+	UpdateRole(ctx context.Context, id uuid.UUID, req UpdateRoleReq) error
+	DeleteRole(ctx context.Context, id uuid.UUID) error
+	GetUsersByRole(ctx context.Context, role string) (ListUsersResponse, error)
+	GetRoleByName(ctx context.Context, name string) (Role, error)
 }
 
 func (c *ControllerRoles) Routes() chi.Router {
@@ -40,6 +42,8 @@ func (c *ControllerRoles) Routes() chi.Router {
 }
 
 func (c *ControllerRoles) CreateRole(w http.ResponseWriter, r *http.Request) {
+	ctx, cancel := context.WithTimeout(r.Context(), time.Second)
+	defer cancel()
 	defer func() {
 		if err := r.Body.Close(); err != nil {
 			c.logger.Error("failed to close request body", zap.Error(err))
@@ -52,7 +56,7 @@ func (c *ControllerRoles) CreateRole(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusBadRequest)
 		return
 	}
-	err = c.svc.CreateRole(req)
+	err = c.svc.CreateRole(ctx, req)
 	if err != nil {
 		c.logger.Error("failed to create role", zap.Error(err))
 		common.ErrResponse(w, http.StatusBadRequest, err.Error())
@@ -63,6 +67,8 @@ func (c *ControllerRoles) CreateRole(w http.ResponseWriter, r *http.Request) {
 }
 
 func (c *ControllerRoles) UpdateRole(w http.ResponseWriter, r *http.Request) {
+	ctx, cancel := context.WithTimeout(r.Context(), time.Second)
+	defer cancel()
 	roleId := chi.URLParam(r, "roleID")
 	id, err := uuid.Parse(roleId)
 	if err != nil || id == uuid.Nil {
@@ -82,7 +88,7 @@ func (c *ControllerRoles) UpdateRole(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusBadRequest)
 		return
 	}
-	err = c.svc.UpdateRole(id, req)
+	err = c.svc.UpdateRole(ctx, id, req)
 	if err != nil {
 		c.logger.Error("failed to update user", zap.Error(err))
 		common.ErrResponse(w, http.StatusBadRequest, err.Error())
@@ -93,6 +99,8 @@ func (c *ControllerRoles) UpdateRole(w http.ResponseWriter, r *http.Request) {
 }
 
 func (c *ControllerRoles) DeleteRole(w http.ResponseWriter, r *http.Request) {
+	ctx, cancel := context.WithTimeout(r.Context(), time.Second)
+	defer cancel()
 	role := chi.URLParam(r, "roleID")
 	id, err := uuid.Parse(role)
 	if err != nil || id == uuid.Nil {
@@ -100,7 +108,7 @@ func (c *ControllerRoles) DeleteRole(w http.ResponseWriter, r *http.Request) {
 		common.ErrResponse(w, http.StatusBadRequest, "invalid param")
 		return
 	}
-	err = c.svc.DeleteRole(id)
+	err = c.svc.DeleteRole(ctx, id)
 	if err != nil {
 		c.logger.Error("failed to delete user", zap.Error(err))
 		common.ErrResponse(w, http.StatusBadRequest, err.Error())
@@ -111,13 +119,15 @@ func (c *ControllerRoles) DeleteRole(w http.ResponseWriter, r *http.Request) {
 }
 
 func (c *ControllerRoles) GetUsersByRole(w http.ResponseWriter, r *http.Request) {
+	ctx, cancel := context.WithTimeout(r.Context(), time.Second)
+	defer cancel()
 	role := chi.URLParam(r, "role")
 	if role == "" {
 		c.logger.Warn("invalid param")
 		common.ErrResponse(w, http.StatusBadRequest, "invalid param")
 		return
 	}
-	users, err := c.svc.GetUsersByRole(role)
+	users, err := c.svc.GetUsersByRole(ctx, role)
 	if err != nil {
 		c.logger.Error("failed to retrieve users by role", zap.Error(err))
 		common.ErrResponse(w, http.StatusBadRequest, err.Error())

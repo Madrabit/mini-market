@@ -11,15 +11,19 @@ import (
 	"github.com/madrabit/mini-market/users/internal/info"
 	"github.com/madrabit/mini-market/users/internal/validator"
 	"github.com/madrabit/mini-market/users/internal/web"
+	"github.com/prometheus/client_golang/prometheus"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
 	gracefulshutdown "github.com/quii/go-graceful-shutdown"
 	"log"
 	"net/http"
+	"os"
 )
 
 func main() {
-	if err := godotenv.Load(); err != nil {
-		log.Fatal("Error loading .env file")
+	if _, err := os.Stat(".env"); err == nil {
+		_ = godotenv.Load()
 	}
+
 	cfg, err := common.Load()
 	if err != nil {
 		log.Fatal("config load error, %w", err)
@@ -43,7 +47,8 @@ func main() {
 }
 
 func build(db *sqlx.DB, logger *common.Logger, cfg *common.Config) *web.Server {
-	server := web.NewServer()
+	reg := prometheus.DefaultRegisterer
+	server := web.NewServer(reg)
 	vld := validator.New()
 	repository := internal.NewRepository(db)
 	roleService := internal.NewRoleService(repository, vld)
@@ -52,6 +57,7 @@ func build(db *sqlx.DB, logger *common.Logger, cfg *common.Config) *web.Server {
 	controllerRoles := internal.NewControllerRoles(roleService, logger)
 	controllerInfo := info.NewInfoController(logger, cfg, db)
 	server.Router.Mount("/", controllerInfo.Routes())
+	server.Router.Mount("/metrics", promhttp.Handler())
 	server.Router.Route("/api", func(r chi.Router) {
 		r.Route("/v1", func(r chi.Router) {
 			r.Mount("/users", controllerUsers.Routes())

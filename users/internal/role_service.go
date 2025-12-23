@@ -1,6 +1,7 @@
 package internal
 
 import (
+	"context"
 	"database/sql"
 	"errors"
 	"fmt"
@@ -14,12 +15,12 @@ type RoleService struct {
 }
 
 type RoleRepo interface {
-	CreateRole(role Role) error
-	UpdateRole(id uuid.UUID, name string) error
-	DeleteRole(id uuid.UUID) error
-	GetAllRoles() ([]Role, error)
-	GetRoleByName(name string) (Role, error)
-	GetUsersByRole(role string) ([]User, error)
+	CreateRole(ctx context.Context, role Role) error
+	UpdateRole(ctx context.Context, id uuid.UUID, name string) error
+	DeleteRole(ctx context.Context, id uuid.UUID) error
+	GetAllRoles(ctx context.Context) ([]Role, error)
+	GetRoleByName(ctx context.Context, name string) (Role, error)
+	GetUsersByRole(ctx context.Context, role string) ([]User, error)
 }
 
 func NewRoleService(repo RoleRepo, validator Validator) *RoleService {
@@ -29,7 +30,7 @@ func NewRoleService(repo RoleRepo, validator Validator) *RoleService {
 	}
 }
 
-func (s *RoleService) CreateRole(req CreateRoleReq) error {
+func (s *RoleService) CreateRole(ctx context.Context, req CreateRoleReq) error {
 	if err := s.validator.Validate(req); err != nil {
 		return &common.NotFoundError{Message: err.Error()}
 	}
@@ -38,18 +39,18 @@ func (s *RoleService) CreateRole(req CreateRoleReq) error {
 		Id:   id,
 		Name: req.Name,
 	}
-	err := s.repo.CreateRole(role)
+	err := s.repo.CreateRole(ctx, role)
 	if err != nil {
 		return fmt.Errorf("role service: failed to create role: %w", err)
 	}
 	return nil
 }
 
-func (s *RoleService) UpdateRole(id uuid.UUID, req UpdateRoleReq) error {
+func (s *RoleService) UpdateRole(ctx context.Context, id uuid.UUID, req UpdateRoleReq) error {
 	if err := s.validator.Validate(req); err != nil {
 		return &common.RequestValidationError{Message: err.Error()}
 	}
-	err := s.repo.UpdateRole(id, req.Name)
+	err := s.repo.UpdateRole(ctx, id, req.Name)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			return &common.RequestValidationError{Message: "role not found"}
@@ -59,32 +60,32 @@ func (s *RoleService) UpdateRole(id uuid.UUID, req UpdateRoleReq) error {
 	return nil
 }
 
-func (s *RoleService) DeleteRole(id uuid.UUID) error {
-	err := s.repo.DeleteRole(id)
+func (s *RoleService) DeleteRole(ctx context.Context, id uuid.UUID) error {
+	err := s.repo.DeleteRole(ctx, id)
 	if err != nil {
 		return fmt.Errorf("role service: failed to delete role: %w", err)
 	}
 	return nil
 }
 
-func (s *RoleService) GetRoleByName(name string) (Role, error) {
-	role, err := s.repo.GetRoleByName(name)
+func (s *RoleService) GetRoleByName(ctx context.Context, name string) (Role, error) {
+	role, err := s.repo.GetRoleByName(ctx, name)
 	if err != nil {
 		return Role{}, fmt.Errorf("role service: failed to get role by role name: %w", err)
 	}
 	return role, nil
 }
 
-func (s *RoleService) GetAllRoles() ([]Role, error) {
-	roles, err := s.repo.GetAllRoles()
+func (s *RoleService) GetAllRoles(ctx context.Context) ([]Role, error) {
+	roles, err := s.repo.GetAllRoles(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("role service: failed to get all roles: %w", err)
 	}
 	return roles, nil
 }
 
-func (s *RoleService) GetUsersByRole(name string) (ListUsersResponse, error) {
-	users, err := s.repo.GetUsersByRole(name)
+func (s *RoleService) GetUsersByRole(ctx context.Context, name string) (ListUsersResponse, error) {
+	users, err := s.repo.GetUsersByRole(ctx, name)
 	if err != nil {
 		return ListUsersResponse{}, fmt.Errorf("role service: failed to get users by role: %w", err)
 	}
