@@ -169,3 +169,17 @@ func (r *Repository) GetUserRoles(ctx context.Context, userID uuid.UUID) ([]Role
 	}
 	return roles, nil
 }
+
+// TODO доделать пагинацию первый запрос без курсора, потом с курсором
+func (r *Repository) GetUsersPaginated(ctx context.Context, lastId uuid.UUID, pageSize int64) ([]User, error) {
+	var users []User
+	//err := r.db.SelectContext(ctx, &users, `
+	//SELECT	user.id, user.name, user.email
+	//FROM user
+	//where id not null or (user.create_at > AND id > $1) $1  order by id limit $2;
+	//`, lastId, pageSize)
+	//if err != nil {
+	//	return nil, err
+	//}
+	return users, nil
+}

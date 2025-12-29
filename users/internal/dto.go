@@ -52,3 +52,8 @@ type RoleResponse struct {
 	ID   uuid.UUID `json:"id"`
 	Name string    `json:"name"`
 }
+
+type PageKeySetRequest struct {
+	LastId   uuid.UUID
+	PageSize int64
+}

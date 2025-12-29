@@ -3,11 +3,13 @@ package internal
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"github.com/go-chi/chi/v5"
 	"github.com/google/uuid"
 	"github.com/madrabit/mini-market/users/internal/common"
 	"go.uber.org/zap"
 	"net/http"
+	"strconv"
 	"time"
 )
 
@@ -26,6 +28,7 @@ type SvcUsers interface {
 	DeleteUser(ctx context.Context, DeleteUserReq uuid.UUID) error
 	GetUserByID(ctx context.Context, userID uuid.UUID) (User, error)
 	GetUsersByIds(ctx context.Context, req ListUsersRequest) (ListUsersResponse, error)
+	GetUsersPaginated(ctx context.Context, lastId uuid.UUID, pageSize int64) (ListUsersResponse, error)
 }
 
 func (c *ControllerUsers) Routes() chi.Router {
@@ -37,7 +40,7 @@ func (c *ControllerUsers) Routes() chi.Router {
 	//Обновление пользователя
 	r.Delete("/{userID}", c.DeleteUser)
 	// выводить всех пользователей по пагинации
-	r.Get("/{userID}", c.GetUserByID)
+	r.Get("/", c.GetUsersPaginated)
 	// получить список пользователей по id
 	r.Post("/search/", c.GetUsersByIds)
 	// получить одного пользователя
@@ -145,6 +148,52 @@ func (c *ControllerUsers) GetUsersByIds(w http.ResponseWriter, r *http.Request) 
 	}
 	common.OkResponse(w, users)
 
+}
+
+func (c *ControllerUsers) GetUsersPaginated(w http.ResponseWriter, r *http.Request) {
+	ctx, cancel := context.WithTimeout(r.Context(), time.Second)
+	defer cancel()
+	var (
+		lastId   uuid.UUID
+		pageSize int64
+		err      error
+	)
+	lastIdParam := r.URL.Query().Get("lastId")
+	if lastIdParam != "" {
+		lastId, err := uuid.Parse(lastIdParam)
+		if err != nil || lastId == uuid.Nil {
+			c.logger.Warn("invalid param")
+			common.ErrResponse(w, http.StatusBadRequest, "invalid param")
+			return
+		}
+	}
+	pageSizeStr := r.URL.Query().Get("pageSize")
+	if pageSizeStr != "" {
+		pageSize, err = strconv.ParseInt(pageSizeStr, 10, 64)
+		if err != nil {
+			c.logger.Error("get page of users: wrong pageSize", zap.Error(err))
+			common.ErrResponse(w, http.StatusBadRequest, err.Error())
+			return
+		}
+	}
+	users, err := c.svc.GetUsersPaginated(ctx, lastId, pageSize)
+	var reqErr *common.RequestValidationError
+	var notFoundErr *common.NotFoundError
+	if err != nil {
+		c.logger.Error("get page of users", zap.Error(err))
+		switch {
+		case errors.As(err, &notFoundErr):
+			common.OkResponse(w, ListUsersResponse{})
+			return
+		case errors.As(err, &reqErr):
+			common.ErrResponse(w, http.StatusBadRequest, err.Error())
+			return
+		default:
+			common.ErrResponse(w, http.StatusInternalServerError, err.Error())
+			return
+		}
+	}
+	common.OkResponse(w, users)
 }
 
 func (c *ControllerUsers) GetUserByID(w http.ResponseWriter, r *http.Request) {

@@ -26,6 +26,7 @@ type UserRepo interface {
 	GetUsersByIds(ctx context.Context, IDs []uuid.UUID) ([]User, error)
 	GetUsersByRole(ctx context.Context, role string) ([]User, error)
 	GetUserRoles(ctx context.Context, userID uuid.UUID) ([]Role, error)
+	GetUsersPaginated(ctx context.Context, lastID uuid.UUID, pageSize int64) ([]User, error)
 }
 
 func NewUserService(userRepo UserRepo, roleSvc SvcRoles, validator Validator) *UserService {
@@ -161,4 +162,29 @@ func (s *UserService) GetUsersByRole(ctx context.Context, role string) (ListUser
 	return ListUsersResponse{
 		userResp,
 	}, nil
+}
+
+func (s *UserService) GetUsersPaginated(ctx context.Context, lastId uuid.UUID, pageSize int64) (ListUsersResponse, error) {
+	if pageSize <= 0 {
+		pageSize = 20
+	}
+	if pageSize > 100 {
+
+	}
+	users, err := s.userRepo.GetUsersPaginated(ctx, lastId, pageSize)
+	if err != nil {
+		return ListUsersResponse{}, fmt.Errorf("user service: failed to get users pagination: %w", err)
+	}
+	resp := make([]UserResponse, 0, len(users))
+	for _, u := range users {
+		resp = append(resp, UserResponse{
+			ID:    u.Id,
+			Name:  u.Name,
+			Email: u.Email,
+		})
+	}
+	response := ListUsersResponse{
+		Users: resp,
+	}
+	return response, nil
 }
